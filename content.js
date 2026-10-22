@@ -49,6 +49,7 @@
   const state = {
     status: "checking",
     checked: 0,
+    checkedPaths: /** @type {string[]} */ ([]),
     violations: /** @type {string[]} */ ([]),
     issuedAt: null,
     manifestMissing: false,
@@ -62,6 +63,7 @@
       type: "gcv-state",
       status: state.status,
       checked: state.checked,
+      checkedPaths: state.checkedPaths,
       violations: state.violations,
       issuedAt: state.issuedAt,
       url: location.href,
@@ -86,6 +88,7 @@
       if (!resp.ok) return; // errors carry no executable code
       const hash = await sha256B64(await resp.arrayBuffer());
       state.checked++;
+      state.checkedPaths.push(path);
       if (code && code[path] !== hash) {
         state.violations.push(code[path] === undefined ? `${path} (not in manifest)` : `${path} (hash mismatch)`);
         state.status = "violation";
@@ -150,6 +153,7 @@
         await (await fetch(location.href, { cache: "no-store" })).arrayBuffer(),
       );
       state.checked++;
+      state.checkedPaths.push(path);
       if (code[path] !== hash) state.violations.push(`${path} (hash mismatch)`);
       if (state.violations.length) state.status = "violation";
     }
