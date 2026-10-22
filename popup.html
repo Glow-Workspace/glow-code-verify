@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { font-family: system-ui, sans-serif; width: 320px; margin: 0; padding: 16px; background: #f3efe4; color: #23272f; }
+  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .verified { background: #16a34a; } .violation { background: #dc2626; }
+  .checking { background: #8a8f98; } .unknown { background: #b45309; }
+  h1 { font-size: 15px; margin: 0; }
+  .meta { font-size: 12px; color: #5a5f6a; margin: 2px 0; }
+  .viol { font-size: 11px; font-family: ui-monospace, monospace; color: #b91c1c; margin: 4px 0 0 24px; word-break: break-all; }
+  .foot { font-size: 11px; color: #8a8f98; margin-top: 12px; }
+</style>
+</head>
+<body>
+  <div class="row"><div id="dot" class="dot checking"></div><h1 id="headline">Checking…</h1></div>
+  <div id="detail" class="meta"></div>
+  <div id="violations"></div>
+  <div class="foot">Glow Code Verify — code checked against the deployment-signed release manifest.</div>
+  <script src="popup.js"></script>
+</body>
+</html>
