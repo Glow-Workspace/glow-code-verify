@@ -17,9 +17,18 @@
  */
 (() => {
   const DEPLOYMENT_IDENTITY_PUB_B64 = "BVs8SY77q3COnqm9zsZVNiEJ3o0pQpdoAK+GW9afEMk=";
-  const MANIFEST_URL = "/web-manifest/manifest.json";
+  // Two signed lanes, one deployment identity. The admin console lives
+  // exclusively under /admin on :8443 (everything else there is an edge
+  // 404); the meeting app owns the public :443 origin.
+  const ADMIN = location.port === "8443";
+  const BASE = ADMIN ? "/admin" : "";
+  const MANIFEST_URL = `${BASE}/web-manifest/manifest.json`;
+  const INDEX_PATH = `${BASE}/index.html`;
+  const STORE_KEY = `maxIssuedAt:${ADMIN ? "admin" : "web"}`;
   const CODE_RE = /\.(m?js|wasm)$/;
-  const SKIP_PATHS = new Set([MANIFEST_URL, "/manifest.unsigned.json", "/__web-anchor-reset"]);
+  const SKIP_PATHS = new Set([
+    MANIFEST_URL, `${BASE}/manifest.unsigned.json`, `${BASE}/__web-anchor-reset`,
+  ]);
 
   /* Canonical JSON — byte-identical to
    * packages/protocol/src/web-manifest.ts and public/sw.js. */
@@ -134,21 +143,22 @@
       report();
       return;
     }
-    // Freshness — reject manifest rollback.
-    const stored = await chrome.storage.local.get("maxIssuedAt");
-    if (m.issuedAt < (stored.maxIssuedAt ?? 0)) {
+    // Freshness — reject manifest rollback. One clock per lane: the two
+    // manifests are signed independently and share no ordering.
+    const stored = await chrome.storage.local.get(STORE_KEY);
+    if (m.issuedAt < (stored[STORE_KEY] ?? 0)) {
       state.status = "violation";
-      state.violations.push(`manifest rollback (${m.issuedAt} < ${stored.maxIssuedAt})`);
+      state.violations.push(`manifest rollback (${m.issuedAt} < ${stored[STORE_KEY]})`);
       report();
       return;
     }
-    await chrome.storage.local.set({ maxIssuedAt: m.issuedAt });
+    await chrome.storage.local.set({ [STORE_KEY]: m.issuedAt });
     code = m.code;
     state.issuedAt = m.issuedAt;
 
     // 2) The document itself (SPA: any path serves index.html bytes).
     {
-      const path = "/index.html";
+      const path = INDEX_PATH;
       const hash = await sha256B64(
         await (await fetch(location.href, { cache: "no-store" })).arrayBuffer(),
       );

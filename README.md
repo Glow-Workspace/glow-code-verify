@@ -6,7 +6,7 @@ itself. Derived conceptually from Meta's Code Verify (MIT).
 
 ## How it works
 
-1. `content.js` runs on `https://meet.glow-im.com/*` and fetches
+1. `content.js` runs on `https://meet-web.glow-im.com/* (+ :8443/admin)` and fetches
    `/web-manifest/manifest.json`.
 2. The manifest signature is verified with WebCrypto Ed25519 against
    `DEPLOYMENT_IDENTITY_PUB_B64`, baked into this (signed) extension —

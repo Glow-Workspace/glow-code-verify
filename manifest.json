@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Glow Code Verify",
-  "version": "0.1.0",
-  "description": "Verifies that the Glow Meet web app's code matches the signed release manifest — protects against tampered or injected code.",
+  "version": "0.1.1",
+  "description": "Verifies that Glow Meet web apps' code matches the signed release manifest \u2014 protects against tampered or injected code.",
   "action": {
     "default_title": "Glow Code Verify",
     "default_popup": "popup.html",
@@ -24,11 +24,21 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://meet.glow-im.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://meet-web.glow-im.com/*",
+        "https://meet-web.glow-im.com:8443/admin/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
-  "permissions": ["storage"],
-  "host_permissions": ["https://meet.glow-im.com/*"]
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://meet-web.glow-im.com/*",
+    "https://meet-web.glow-im.com:8443/*"
+  ]
 }
