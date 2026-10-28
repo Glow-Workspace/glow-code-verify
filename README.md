@@ -29,6 +29,23 @@ itself. Derived conceptually from Meta's Code Verify (MIT).
 | ? amber | manifest unreachable or Ed25519 unsupported |
 | … gray  | checks still running |
 
+## Build flavors
+
+The extension is a flavor-bound client (see glow-meet's
+`docs/architecture/client-build-flavors.md`): the baked identity pub +
+manifest host patterns pin ONE deployment.
+
+```bash
+scripts/build.sh debug    # = vps   — meet-web.glow-im.com, rk-2 anchors
+scripts/build.sh release  # = sky47 — meet-web.axitechnologies.pk, sky47-1
+```
+
+Emits `dist/<flavor>/` (load-unpacked ready). The committed source IS
+the vps build — other flavors substitute from glow-meet's
+`deploy/flavors.json` (set `GLOW_MEET_REPO` if it isn't the sibling
+checkout). Verify an artifact with
+`<glow-meet>/scripts/check-flavor.sh <flavor> --expect-domain dist/<flavor>`.
+
 ## Install (pre-store)
 
 Download `glow-code-verify.zip`, unzip, then:
