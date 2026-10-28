@@ -1,59 +1,68 @@
 #!/bin/bash
-# build.sh <vps|sky47> — emit a flavored extension build into dist/<flavor>/.
+# build.sh — emit the universal extension build into dist/.
 #
-# The extension is a flavor-bound client (docs/architecture/
-# client-build-flavors.md): its baked DEPLOYMENT_IDENTITY_PUB_B64 and
-# manifest host patterns pin exactly one deployment — an rk-2 build on
-# axitechnologies.pk would report sky47-1-signed manifests as
-# VIOLATIONS, and a sky47-1 build on glow-im.com would do the reverse.
+# One artifact verifies EVERY deployment: content.js's IDENTITY_PUBS
+# maps each host → that deployment's identity anchor (a map, not a
+# key union — an rk-2-signed manifest on the sky47 domain is still a
+# VIOLATION, and vice versa; hosts outside the map aren't injected at
+# all). Hosts and anchors are generated from glow-meet's canonical
+# deploy/flavors.json (GLOW_MEET_REPO overrides the sibling checkout),
+# so new flavors propagate automatically.
 #
-# The committed source IS the vps build (same committed-default
-# convention as DeploymentFlavor.generated.swift / deployment.ts):
-# `build.sh vps` copies verbatim; other flavors substitute that
-# flavor's base domain + identity pub read from glow-meet's canonical
-# deploy/flavors.json (GLOW_MEET_REPO overrides the sibling checkout).
-#
-# Output: dist/<flavor>/ — load-unpacked ready. Gate the result with
-#   <glow-meet>/scripts/check-flavor.sh <flavor> --expect-domain dist/<flavor>
+# Output: dist/ — load-unpacked ready.
 set -euo pipefail
-FLAVOR="${1:?usage: build.sh <vps|sky47|debug|release>}"
-# debug/release aliases — same pairing as Android's build types:
-# debug ↔ vps, release ↔ sky47 (docs/architecture/client-build-flavors.md).
-case "$FLAVOR" in
-  debug)   FLAVOR=vps ;;
-  release) FLAVOR=sky47 ;;
-esac
 EXT="$(cd "$(dirname "$0")/.." && pwd)"
 MEET="$(cd "${GLOW_MEET_REPO:-$EXT/../glow-meet}" && pwd)"
 FLAVORS_JSON="$MEET/deploy/flavors.json"
-OUT="$EXT/dist/$FLAVOR"
+OUT="$EXT/dist"
 
 [ -f "$FLAVORS_JSON" ] || { echo "no $FLAVORS_JSON — set GLOW_MEET_REPO"; exit 2; }
-read_f() { python3 -c "import json;print(json.load(open('$FLAVORS_JSON'))$1)"; }
-BASE="$(read_f "['flavors']['$FLAVOR']['baseDomain']")" || exit 1
-PUB="$(read_f "['flavors']['$FLAVOR']['deploymentIdentityPub']")" || exit 1
-KEYID="$(read_f "['flavors']['$FLAVOR']['keyId']")" || exit 1
 
 rm -rf "$OUT"; mkdir -p "$OUT"
 for f in manifest.json content.js popup.js popup.html background.js LICENSE.md icons; do
   cp -R "$EXT/$f" "$OUT/"
 done
 
-# Source literals are the vps flavor — substitute only for others.
-if [ "$FLAVOR" != "vps" ]; then
-  python3 - "$OUT" "$BASE" "$PUB" <<'EOF'
-import sys
-out, base, pub = sys.argv[1], sys.argv[2], sys.argv[3]
-for name, subs in {
-    "manifest.json": [("meet-web.glow-im.com", f"meet-web.{base}")],
-    "content.js": [("BVs8SY77q3COnqm9zsZVNiEJ3o0pQpdoAK+GW9afEMk=", pub)],
-}.items():
-    p = f"{out}/{name}"
-    s = open(p).read()
-    for a, b in subs:
-        s = s.replace(a, b)
-    open(p, "w").write(s)
-EOF
-fi
+python3 - "$OUT" "$FLAVORS_JSON" <<'EOF'
+import json, re, sys
+out, fj = sys.argv[1], sys.argv[2]
+flavors = json.load(open(fj))["flavors"]
+hosts = [f"meet-web.{f['baseDomain']}" for f in flavors.values()]
+anchors = {h: f["deploymentIdentityPub"] for h, f in
+           zip(hosts, flavors.values())}
 
-echo "build: dist/$FLAVOR — $BASE ($KEYID)"
+# content.js — replace the single-entry source map with every flavor's.
+p = f"{out}/content.js"
+s = open(p).read()
+map_src = "{\n" + "".join(f'    "{h}": "{p}",\n' for h, p in anchors.items()) + "  }"
+s = re.sub(r"IDENTITY_PUBS = \{[^}]*\}", f"IDENTITY_PUBS = {map_src}", s, count=1)
+open(p, "w").write(s)
+
+# manifest.json — union of every flavor's host patterns.
+p = f"{out}/manifest.json"
+s = open(p).read()
+matches = [pat for h in hosts
+           for pat in (f"https://{h}/*", f"https://{h}:8443/admin/*")]
+perms = [pat for h in hosts
+         for pat in (f"https://{h}/*", f"https://{h}:8443/*")]
+s = re.sub(r'"matches": \[[^\]]*\]', '"matches": ' + json.dumps(matches), s, count=1)
+s = re.sub(r'"host_permissions": \[[^\]]*\]', '"host_permissions": ' + json.dumps(perms), s, count=1)
+open(p, "w").write(s)
+EOF
+
+# Gate: every flavor's host in BOTH files' pattern sets, every flavor's
+# pub in content.js — and nothing else.
+python3 - "$OUT" "$FLAVORS_JSON" <<'EOF'
+import json, re, sys
+out, fj = sys.argv[1], sys.argv[2]
+flavors = json.load(open(fj))["flavors"]
+want_hosts = {f"meet-web.{f['baseDomain']}" for f in flavors.values()}
+want_pubs = {f["deploymentIdentityPub"] for f in flavors.values()}
+man = open(f"{out}/manifest.json").read()
+con = open(f"{out}/content.js").read()
+got_hosts = set(re.findall(r'meet-web\.[\w.-]+', man)) | set(re.findall(r'meet-web\.[\w.-]+', con))
+got_pubs = set(re.findall(r'"([A-Za-z0-9+/]{43}=)"', con))
+assert got_hosts == want_hosts, f"host set drift: {got_hosts ^ want_hosts}"
+assert want_pubs <= got_pubs, f"missing pubs: {want_pubs - got_pubs}"
+print(f"gate: {len(got_hosts)} hosts, {len(want_pubs)} anchors: {', '.join(sorted(got_hosts))}")
+EOF

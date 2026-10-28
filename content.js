@@ -16,7 +16,16 @@
  * format is Glow's (signed JSON, not a hash tree).
  */
 (() => {
-  const DEPLOYMENT_IDENTITY_PUB_B64 = "BVs8SY77q3COnqm9zsZVNiEJ3o0pQpdoAK+GW9afEMk=";
+  // Host → deployment-identity anchor. A map, not a key set: each host
+  // accepts ONLY its own signer, so a compromise of one deployment's
+  // key can't green-sign manifests on another deployment's domain.
+  // Hosts absent from the map aren't injected at all (manifest.json
+  // matches) — same fail-closed as before.
+  const IDENTITY_PUBS = {
+    "meet-web.glow-im.com": "BVs8SY77q3COnqm9zsZVNiEJ3o0pQpdoAK+GW9afEMk=",
+  };
+  const DEPLOYMENT_IDENTITY_PUB_B64 = IDENTITY_PUBS[location.hostname];
+  if (!DEPLOYMENT_IDENTITY_PUB_B64) return; // matched host without an anchor — never verify blind
   // Two signed lanes, one deployment identity. The admin console lives
   // exclusively under /admin on :8443 (everything else there is an edge
   // 404); the meeting app owns the public :443 origin.
@@ -24,7 +33,10 @@
   const BASE = ADMIN ? "/admin" : "";
   const MANIFEST_URL = `${BASE}/web-manifest/manifest.json`;
   const INDEX_PATH = `${BASE}/index.html`;
-  const STORE_KEY = `maxIssuedAt:${ADMIN ? "admin" : "web"}`;
+  // Freshness is per-host AND per-lane: each deployment's issuedAt is an
+  // independent clock, so a shared key would false-flag cross-deployment
+  // visits as rollbacks.
+  const STORE_KEY = `maxIssuedAt:${location.hostname}:${ADMIN ? "admin" : "web"}`;
   const CODE_RE = /\.(m?js|wasm)$/;
   const SKIP_PATHS = new Set([
     MANIFEST_URL, `${BASE}/manifest.unsigned.json`, `${BASE}/__web-anchor-reset`,
