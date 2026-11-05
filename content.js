@@ -27,9 +27,10 @@
   const DEPLOYMENT_IDENTITY_PUB_B64 = IDENTITY_PUBS[location.hostname];
   if (!DEPLOYMENT_IDENTITY_PUB_B64) return; // matched host without an anchor — never verify blind
   // Two signed lanes, one deployment identity. The admin console lives
-  // exclusively under /admin on :8443 (everything else there is an edge
-  // 404); the meeting app owns the public :443 origin.
-  const ADMIN = location.port === "8443";
+  // on the dedicated meet-admin.<base> host under /admin (legacy
+  // deployments also exposed it at meet-web:8443/admin — the port check
+  // keeps those working); the meeting app owns the public :443 origin.
+  const ADMIN = location.hostname.startsWith("meet-admin.") || location.port === "8443";
   const BASE = ADMIN ? "/admin" : "";
   const MANIFEST_URL = `${BASE}/web-manifest/manifest.json`;
   const INDEX_PATH = `${BASE}/index.html`;

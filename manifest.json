@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Glow Code Verify",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Verifies that Glow Meet web apps' code matches the signed release manifest \u2014 protects against tampered or injected code.",
   "action": {
     "default_title": "Glow Code Verify",

@@ -28,7 +28,14 @@ import json, re, sys
 out, fj = sys.argv[1], sys.argv[2]
 envs = json.load(open(fj))["environments"]
 hosts = [f"meet-web.{e['baseDomain']}" for e in envs.values()]
-anchors = {h: e["deploymentIdentityPub"] for h, e in zip(hosts, envs.values())}
+admin_hosts = [h.replace("meet-web.", "meet-admin.") for h in hosts]
+# Both lanes anchor to the same deployment identity — content.js picks
+# the lane by hostname, and a foreign-deployment signature on either is
+# a violation.
+anchors = {}
+for h, e in zip(hosts, envs.values()):
+    anchors[h] = e["deploymentIdentityPub"]
+    anchors[h.replace("meet-web.", "meet-admin.")] = e["deploymentIdentityPub"]
 
 # content.js — replace the single-entry source map with every flavor's.
 p = f"{out}/content.js"
@@ -56,11 +63,12 @@ python3 - "$OUT" "$ENVS_JSON" <<'EOF'
 import json, re, sys
 out, fj = sys.argv[1], sys.argv[2]
 envs = json.load(open(fj))["environments"]
-want_hosts = {f"meet-web.{e['baseDomain']}" for e in envs.values()}
+want_hosts = {f"{p}.{e['baseDomain']}" for e in envs.values()
+              for p in ("meet-web", "meet-admin")}
 want_pubs = {e["deploymentIdentityPub"] for e in envs.values()}
 man = open(f"{out}/manifest.json").read()
 con = open(f"{out}/content.js").read()
-got_hosts = set(re.findall(r'meet-web\.[\w.-]+', man)) | set(re.findall(r'meet-web\.[\w.-]+', con))
+got_hosts = set(re.findall(r'meet-(?:web|admin)\.[\w.-]+', man)) | set(re.findall(r'meet-(?:web|admin)\.[\w.-]+', con))
 got_pubs = set(re.findall(r'"([A-Za-z0-9+/]{43}=)"', con))
 assert got_hosts == want_hosts, f"host set drift: {got_hosts ^ want_hosts}"
 assert want_pubs <= got_pubs, f"missing pubs: {want_pubs - got_pubs}"
