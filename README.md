@@ -46,7 +46,9 @@ Set `GLOW_MEET_REPO` if the glow-meet checkout isn't the sibling.
 
 ## Install (pre-store)
 
-Download `glow-code-verify.zip`, unzip, then:
+Download `glow-code-verify.zip` from the
+[latest release](https://github.com/Glow-Workspace/glow-code-verify/releases/latest),
+unzip, then:
 
 - **Chrome/Edge**: `chrome://extensions` → Developer mode →
   *Load unpacked* → select the unzipped folder.
