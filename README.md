@@ -22,6 +22,19 @@ itself. Derived conceptually from Meta's Code Verify (MIT).
 5. Result: `verified` / `violation` / `unknown` shown on the toolbar
    badge and popup.
 
+## Coverage
+
+Verifies the **web app** (`meet-web.*`) and **admin console**
+(`meet-admin.*`) on every deployment — currently `glow-im.com` (dev)
+and `glow-workspace.com` (prod).
+
+The marketing site (`meet.*`) is deliberately **not** covered: it ships
+no signed manifest and runs no session/E2EE code — its risk class is
+defacement/link-swapping, which TLS + the edge already cover. (The
+`/desktop/` installers it hosts need binary signing, not a code
+manifest.) Decision recorded in glow-meet's
+`docs/security/outstanding-findings-2026-11-03.md` §7.
+
 ## Badge
 
 | Badge | Meaning |
