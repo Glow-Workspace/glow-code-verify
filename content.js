@@ -169,9 +169,17 @@
     code = m.code;
     state.issuedAt = m.issuedAt;
 
-    // 2) The document itself (SPA: any path serves index.html bytes).
+    // 2) The document itself. App routes serve the SPA shell, but real
+    // files (e.g. /download/index.html) verify under their OWN manifest
+    // key — same pathname → dirIndex → shell resolution the service
+    // worker uses. Comparing real files to the shell key false-flags.
     {
-      const path = INDEX_PATH;
+      const dirIndex = location.pathname.endsWith("/")
+        ? location.pathname + "index.html"
+        : location.pathname + "/index.html";
+      const path = code[location.pathname] ? location.pathname
+        : code[dirIndex] ? dirIndex
+        : INDEX_PATH;
       const hash = await sha256B64(
         await (await fetch(location.href, { cache: "no-store" })).arrayBuffer(),
       );
