@@ -35,7 +35,7 @@ One universal build verifies EVERY deployment. `content.js` maps each
 host → that deployment's identity anchor (a map, not a key union — a
 manifest signed by the wrong deployment's key is a violation, and
 foreign hosts aren't injected at all). Hosts + anchors generate from
-glow-meet's `deploy/flavors.json`, so a new deployment propagates
+glow-meet's `deploy/environments.json`, so a new deployment propagates
 automatically.
 
 ```bash
